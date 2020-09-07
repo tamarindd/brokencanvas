@@ -6,6 +6,7 @@ class DrawApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Drawid',
       debugShowCheckedModeBanner: false,
       home: Draw(),
     );
@@ -19,8 +20,9 @@ class Draw extends StatefulWidget {
 
 class _DrawState extends State<Draw> {
   GestureDetector touch;
+  final recorder = new PictureRecorder();
   CustomPaint canvas;
-  Painter painter = new Painter();
+  final painter = Painter();
   Color strokeColour = Colors.black;
   Map<StrokePropertyType, StrokeProperty> sliderProperties;
   StrokePropertyType selectedMode = StrokePropertyType.Width;
@@ -38,13 +40,13 @@ class _DrawState extends State<Draw> {
       ..value = 1.0
       ..max = 1.0;
 
-    sliderProperties = new Map();
+    sliderProperties = Map();
     sliderProperties[StrokePropertyType.Opacity] = opacity;
     sliderProperties[StrokePropertyType.Width] = width;
   }
 
   void panStart(DragStartDetails details) {
-    Paint strokePaint = new Paint();
+    Paint strokePaint = Paint();
     strokePaint.style = PaintingStyle.stroke;
     strokePaint.color = strokeColour
         .withOpacity(sliderProperties[StrokePropertyType.Opacity].value);
@@ -61,6 +63,25 @@ class _DrawState extends State<Draw> {
     painter.endStroke();
   }
 
+  void clearCanvas() {
+    getConfirmation(context, "Clear canvas",
+            "Are you sure you want to restart your drawing?")
+        .then((result) {
+      if (result != null && result) {
+        painter.clear();
+      }
+    });
+  }
+
+  void submitDrawing() {
+    getConfirmation(context, "Submit", "Are you sure you're done drawing?")
+        .then((result) async {
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(
+          canvas.size.height.floor(), canvas.size.width.floor());
+    });
+  }
+
   bool showBottomList = false;
   List<Color> colors = [
     Colors.amber,
@@ -72,32 +93,47 @@ class _DrawState extends State<Draw> {
   ];
   @override
   Widget build(BuildContext context) {
-    touch = new GestureDetector(
-      onPanStart: panStart,
-      onPanUpdate: panUpdate,
-      onPanEnd: panEnd,
-    );
+    touch = GestureDetector(
+        onPanStart: panStart, onPanUpdate: panUpdate, onPanEnd: panEnd);
 
-    canvas = new CustomPaint(
+    canvas = CustomPaint(
       painter: painter,
       child: touch,
     );
 
     return Scaffold(
-      floatingActionButton: IconButton(
-          icon: Icon(Icons.delete),
-          onPressed: () {
-            setState(() {
-              painter.clear();
-            });
-          }),
+      floatingActionButton: Stack(children: <Widget>[
+        Padding(
+          padding: EdgeInsets.only(left: 31),
+          child: Align(
+            alignment: Alignment.bottomLeft,
+            child: FloatingActionButton(
+              backgroundColor: Colors.black,
+              onPressed: () {
+                clearCanvas();
+              },
+              child: Icon(Icons.delete),
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.bottomRight,
+          child: FloatingActionButton(
+            backgroundColor: Colors.lightGreen,
+            onPressed: () {
+              submitDrawing();
+            },
+            child: Icon(Icons.check),
+          ),
+        ),
+      ]),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Container(
             padding: const EdgeInsets.only(left: 8.0, right: 8.0),
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(50.0),
-                color: Colors.tealAccent),
+                color: Colors.lightBlueAccent),
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
@@ -169,6 +205,39 @@ class _DrawState extends State<Draw> {
     );
   }
 
+  Future<bool> getConfirmation(
+      BuildContext context, String title, String content) async {
+    Widget cancelButton = FlatButton(
+      child: Text("Cancel"),
+      onPressed: () {
+        Navigator.pop(context, false);
+      },
+    );
+    Widget continueButton = FlatButton(
+      child: Text("Continue"),
+      onPressed: () {
+        Navigator.pop(context, true);
+      },
+    );
+
+    AlertDialog alert = AlertDialog(
+      title: Text(title),
+      content: Text(content),
+      actions: [
+        cancelButton,
+        continueButton,
+      ],
+    );
+
+    // show the dialog, return true or false
+    return await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return alert;
+      },
+    );
+  }
+
   getColorList() {
     List<Widget> listWidget = List();
     for (Color color in colors) {
@@ -197,7 +266,7 @@ class _DrawState extends State<Draw> {
 }
 
 class Painter extends ChangeNotifier implements CustomPainter {
-  final strokes = new List<DrawingPoints>();
+  final _strokes = List<DrawingPoints>();
 
   Painter();
 
@@ -207,12 +276,12 @@ class Painter extends ChangeNotifier implements CustomPainter {
     DrawingPoints points = DrawingPoints()
       ..paint = strokePaint
       ..points = [position];
-    strokes.add(points);
+    _strokes.add(points);
     notifyListeners();
   }
 
   void appendStroke(Offset position) {
-    var stroke = strokes.last;
+    var stroke = _strokes.last;
     stroke.points.add(position);
     notifyListeners();
   }
@@ -224,15 +293,16 @@ class Painter extends ChangeNotifier implements CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     var rect = Offset.zero & size;
-    Paint fillPaint = new Paint();
-    fillPaint.color = Colors.white70;
-    fillPaint.style = PaintingStyle.fill;
-    canvas.drawRect(rect, fillPaint);
+    Paint background = Paint()
+      ..color = Colors.white70
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(rect, background);
 
-    for (var stroke in strokes) {
-      Path strokePath = new Path();
+    for (var stroke in _strokes) {
+      Path strokePath = Path();
       strokePath.addPolygon(stroke.points, false);
       canvas.drawPath(strokePath, stroke.paint);
+      canvas.clipRect(rect);
     }
   }
 
@@ -250,11 +320,13 @@ class Painter extends ChangeNotifier implements CustomPainter {
   }
 
   void clear() {
-    strokes.clear();
+    _strokes.clear();
+    notifyListeners();
   }
 
   void undo() {
-    strokes.removeLast();
+    _strokes.removeLast();
+    notifyListeners();
   }
 }
 
