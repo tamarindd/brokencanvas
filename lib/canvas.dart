@@ -1,5 +1,8 @@
+import 'dart:ui' as ui;
 import 'dart:ui';
 
+import 'package:brokencanvas/session.dart';
+import 'package:brokencanvas/submit.dart';
 import 'package:flutter/material.dart';
 
 class DrawApp extends StatelessWidget {
@@ -15,10 +18,11 @@ class DrawApp extends StatelessWidget {
 
 class Draw extends StatefulWidget {
   @override
-  _DrawState createState() => _DrawState();
+  _DrawState createState() => _DrawState(Session("orange", 0, "ari"));
 }
 
 class _DrawState extends State<Draw> {
+  Session session;
   GestureDetector touch;
   final recorder = new PictureRecorder();
   CustomPaint canvas;
@@ -31,7 +35,9 @@ class _DrawState extends State<Draw> {
     return sliderProperties[selectedMode];
   }
 
-  _DrawState() {
+  _DrawState(Session session) {
+    this.session = session;
+
     var width = StrokeProperty()
       ..value = 3.0
       ..max = 50.0;
@@ -76,9 +82,19 @@ class _DrawState extends State<Draw> {
   void submitDrawing() {
     getConfirmation(context, "Submit", "Are you sure you're done drawing?")
         .then((result) async {
-      final picture = recorder.endRecording();
-      final img = await picture.toImage(
-          canvas.size.height.floor(), canvas.size.width.floor());
+      final img = await painter.recordPainting(context);
+      final pngBytes = await img.toByteData(format: ImageByteFormat.png);
+      final imgBytes = pngBytes.buffer.asUint8List();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Submit(
+            session: session,
+            imageBytes: imgBytes,
+          ),
+        ),
+      );
+      return pngBytes.buffer.asUint8List();
     });
   }
 
@@ -108,6 +124,7 @@ class _DrawState extends State<Draw> {
           child: Align(
             alignment: Alignment.bottomLeft,
             child: FloatingActionButton(
+              heroTag: "clearBtn",
               backgroundColor: Colors.black,
               onPressed: () {
                 clearCanvas();
@@ -119,6 +136,7 @@ class _DrawState extends State<Draw> {
         Align(
           alignment: Alignment.bottomRight,
           child: FloatingActionButton(
+            heroTag: "submitBtn",
             backgroundColor: Colors.lightGreen,
             onPressed: () {
               submitDrawing();
@@ -270,6 +288,10 @@ class Painter extends ChangeNotifier implements CustomPainter {
 
   Painter();
 
+  Painter.withStrokes(List<DrawingPoints> strokes) {
+    _strokes.addAll(strokes);
+  }
+
   bool hitTest(Offset position) => null;
 
   void startStroke(Offset position, Paint strokePaint) {
@@ -302,7 +324,6 @@ class Painter extends ChangeNotifier implements CustomPainter {
       Path strokePath = Path();
       strokePath.addPolygon(stroke.points, false);
       canvas.drawPath(strokePath, stroke.paint);
-      canvas.clipRect(rect);
     }
   }
 
@@ -327,6 +348,17 @@ class Painter extends ChangeNotifier implements CustomPainter {
   void undo() {
     _strokes.removeLast();
     notifyListeners();
+  }
+
+  Future<ui.Image> recordPainting(BuildContext context) {
+    final recorder = PictureRecorder();
+    Canvas canvas = Canvas(recorder);
+    final painter = Painter.withStrokes(_strokes);
+    final size = context.size;
+    painter.paint(canvas, size);
+    return recorder
+        .endRecording()
+        .toImage(size.width.floor(), size.height.floor());
   }
 }
 
