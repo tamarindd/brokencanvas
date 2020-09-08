@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 class DrawApp extends StatelessWidget {
   @override
@@ -24,7 +25,7 @@ class _DrawState extends State<Draw> {
   final recorder = new PictureRecorder();
   CustomPaint canvas;
   final painter = Painter();
-  Color strokeColour = Colors.black;
+  Color strokeColor = Colors.black;
   Map<StrokePropertyType, StrokeProperty> sliderProperties;
   StrokePropertyType selectedMode = StrokePropertyType.Width;
 
@@ -50,7 +51,7 @@ class _DrawState extends State<Draw> {
     Paint strokePaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round
-    ..color = strokeColour.withOpacity(sliderProperties[StrokePropertyType.Opacity].value)
+    ..color = strokeColor.withOpacity(sliderProperties[StrokePropertyType.Opacity].value)
     ..strokeWidth = sliderProperties[StrokePropertyType.Width].value;
 
     painter.startStroke(details.globalPosition, strokePaint);
@@ -79,7 +80,7 @@ class _DrawState extends State<Draw> {
       final pngBytes = await img.toByteData(format: ImageByteFormat.png);
       final imgBytes = pngBytes.buffer.asUint8List();
       // save image
-      return pngBytes.buffer.asUint8List();
+      // return pngBytes.buffer.asUint8List();
   }
 
   bool showBottomList = false;
@@ -134,8 +135,7 @@ class _DrawState extends State<Draw> {
         child: Container(
             padding: const EdgeInsets.only(left: 8.0, right: 8.0),
             decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(50.0),
-                color: Colors.lightBlueAccent),
+                borderRadius: BorderRadius.circular(50.0), color: Colors.grey),
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
@@ -189,6 +189,9 @@ class _DrawState extends State<Draw> {
                             children: getColorList(),
                           )
                         : Slider(
+                            activeColor: strokeColor.withOpacity(
+                                sliderProperties[StrokePropertyType.Opacity]
+                                    .value),
                             value: selectedSlider().value,
                             max: selectedSlider().max,
                             min: 0.0,
@@ -249,20 +252,18 @@ class _DrawState extends State<Draw> {
   }
 
   Widget colorCircle(Color color) {
-    return GestureDetector(
-      onTap: () {
+    return RawMaterialButton(
+      onPressed: () {
         setState(() {
-          strokeColour = color;
+          strokeColor = color;
         });
       },
-      child: ClipOval(
-        child: Container(
-          padding: const EdgeInsets.only(top: 16.0),
-          height: 36,
-          width: 36,
-          color: color,
-        ),
-      ),
+      constraints: BoxConstraints(
+          minWidth: 36.0, maxWidth: 36.0, minHeight: 36.0, maxHeight: 36.0),
+      highlightColor: Colors.black,
+      elevation: 2.0,
+      fillColor: color,
+      shape: CircleBorder(),
     );
   }
 }
