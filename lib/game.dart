@@ -6,7 +6,6 @@ import 'package:brokencanvas/loading.dart';
 import 'package:brokencanvas/session.dart';
 import 'package:brokencanvas/submit.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 class DrawApp extends StatelessWidget {
   @override
@@ -53,13 +52,12 @@ class _GameState extends State<Game> {
   }
 
   Future<void> drawPhase() async {
-    final pngBytes = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => Draw(),
       ),
-    );
-    await _submitDrawing(pngBytes);
+    ).then((pngBytes) => _submitDrawing(pngBytes));
   }
 
   void _waitForNextRound() async {
@@ -80,7 +78,6 @@ class _GameState extends State<Game> {
     switch (session.state) {
       case SessionState.START:
         {
-          Future.microtask(() => joinGame().then((_) => _waitForNextRound()));
           break;
         }
       case SessionState.DRAW:
@@ -100,8 +97,25 @@ class _GameState extends State<Game> {
         {
           break;
         }
+      default:
     }
 
-    return Scaffold();
+    return Scaffold(
+        backgroundColor: Colors.white70,
+        body: Container(
+          alignment: Alignment.center,
+          child: FlatButton(
+            child: Text("Join game"),
+            onPressed: () {
+              setState(() {
+                this.session = Session()
+                  ..state = SessionState.DRAW
+                  ..group = "orange"
+                  ..user = "arielle"
+                  ..round = 0;
+              });
+            },
+          ),
+        ));
   }
 }
