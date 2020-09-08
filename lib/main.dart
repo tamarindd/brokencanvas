@@ -1,4 +1,4 @@
+import 'package:brokencanvas/game.dart';
 import 'package:flutter/material.dart';
-import 'package:brokencanvas/canvas.dart';
 
 void main() => runApp(DrawApp());

@@ -1,12 +1,12 @@
-
-class Session  {
+class Session {
+  SessionState state;
   String group;
   int round;
   String user;
 
-  Session(String group, int round, String user) {
-    this.group = group;
-    this.round = round;
-    this.user = user;
+  Session() {
+    this.state = SessionState.START;
   }
 }
+
+enum SessionState { START, DRAW, GUESS, WAIT, END }

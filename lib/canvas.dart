@@ -1,28 +1,14 @@
 import 'dart:ui' as ui;
 import 'dart:ui';
 
-import 'package:brokencanvas/session.dart';
-import 'package:brokencanvas/submit.dart';
 import 'package:flutter/material.dart';
-
-class DrawApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Drawid',
-      debugShowCheckedModeBanner: false,
-      home: Draw(),
-    );
-  }
-}
 
 class Draw extends StatefulWidget {
   @override
-  _DrawState createState() => _DrawState(Session("orange", 0, "ari"));
+  _DrawState createState() => _DrawState();
 }
 
 class _DrawState extends State<Draw> {
-  Session session;
   GestureDetector touch;
   final recorder = new PictureRecorder();
   CustomPaint canvas;
@@ -35,9 +21,7 @@ class _DrawState extends State<Draw> {
     return sliderProperties[selectedMode];
   }
 
-  _DrawState(Session session) {
-    this.session = session;
-
+  _DrawState() {
     var width = StrokeProperty()
       ..value = 3.0
       ..max = 50.0;
@@ -79,22 +63,13 @@ class _DrawState extends State<Draw> {
     });
   }
 
-  void submitDrawing() {
+  void returnPainting() {
     getConfirmation(context, "Submit", "Are you sure you're done drawing?")
         .then((result) async {
       final img = await painter.recordPainting(context);
       final pngBytes = await img.toByteData(format: ImageByteFormat.png);
       final imgBytes = pngBytes.buffer.asUint8List();
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => Submit(
-            session: session,
-            imageBytes: imgBytes,
-          ),
-        ),
-      );
-      return pngBytes.buffer.asUint8List();
+      Navigator.pop(context, imgBytes);
     });
   }
 
@@ -139,7 +114,7 @@ class _DrawState extends State<Draw> {
             heroTag: "submitBtn",
             backgroundColor: Colors.lightGreen,
             onPressed: () {
-              submitDrawing();
+              returnPainting();
             },
             child: Icon(Icons.check),
           ),
@@ -250,6 +225,7 @@ class _DrawState extends State<Draw> {
     // show the dialog, return true or false
     return await showDialog(
       context: context,
+      useRootNavigator: false,
       builder: (BuildContext context) {
         return alert;
       },
@@ -286,7 +262,7 @@ class _DrawState extends State<Draw> {
 class Painter extends ChangeNotifier implements CustomPainter {
   final _strokes = List<DrawingPoints>();
 
-  Painter();
+  Painter(); // todo add a white70 rectangle to _strokes
 
   Painter.withStrokes(List<DrawingPoints> strokes) {
     _strokes.addAll(strokes);
@@ -373,4 +349,9 @@ class StrokeProperty {
   double max;
 }
 
-enum StrokePropertyType { Width, Opacity, Color }
+enum StrokePropertyType {
+  Width,
+  Opacity,
+  Color
+} // todo replace opacity with saturation
+// todo display saturation level and width on the bar

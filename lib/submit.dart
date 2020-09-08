@@ -14,16 +14,14 @@ class Submit extends StatelessWidget {
     // display 'submitting'
 
     // submit
-
-    // display 'waiting for everyone to finish'
-
-    //  poll
+    
   }
 
   @override
   Widget build(BuildContext context) {
     submit();
 
+// todo turn this into a popup. when it's done, go to loading page
     return Scaffold(
         backgroundColor: Colors.grey,
         body: Container(
