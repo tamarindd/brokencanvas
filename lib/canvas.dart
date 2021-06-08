@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -46,11 +47,11 @@ class _DrawState extends State<Draw> {
   }
 
   void panStart(DragStartDetails details) {
-    Paint strokePaint = Paint();
-    strokePaint.style = PaintingStyle.stroke;
-    strokePaint.color = strokeColour
-        .withOpacity(sliderProperties[StrokePropertyType.Opacity].value);
-    strokePaint.strokeWidth = sliderProperties[StrokePropertyType.Width].value;
+    Paint strokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..color = strokeColour.withOpacity(sliderProperties[StrokePropertyType.Opacity].value)
+    ..strokeWidth = sliderProperties[StrokePropertyType.Width].value;
 
     painter.startStroke(details.globalPosition, strokePaint);
   }
@@ -73,13 +74,12 @@ class _DrawState extends State<Draw> {
     });
   }
 
-  void submitDrawing() {
-    getConfirmation(context, "Submit", "Are you sure you're done drawing?")
-        .then((result) async {
-      final picture = recorder.endRecording();
-      final img = await picture.toImage(
-          canvas.size.height.floor(), canvas.size.width.floor());
-    });
+  void saveDrawing() async {
+      final img = await painter.recordPainting(context);
+      final pngBytes = await img.toByteData(format: ImageByteFormat.png);
+      final imgBytes = pngBytes.buffer.asUint8List();
+      // save image
+      return pngBytes.buffer.asUint8List();
   }
 
   bool showBottomList = false;
@@ -108,6 +108,7 @@ class _DrawState extends State<Draw> {
           child: Align(
             alignment: Alignment.bottomLeft,
             child: FloatingActionButton(
+              heroTag: "clearBtn",
               backgroundColor: Colors.black,
               onPressed: () {
                 clearCanvas();
@@ -119,11 +120,12 @@ class _DrawState extends State<Draw> {
         Align(
           alignment: Alignment.bottomRight,
           child: FloatingActionButton(
+            heroTag: "submitBtn",
             backgroundColor: Colors.lightGreen,
             onPressed: () {
-              submitDrawing();
+              saveDrawing();
             },
-            child: Icon(Icons.check),
+            child: Icon(Icons.save),
           ),
         ),
       ]),
@@ -268,7 +270,11 @@ class _DrawState extends State<Draw> {
 class Painter extends ChangeNotifier implements CustomPainter {
   final _strokes = List<DrawingPoints>();
 
-  Painter();
+  Painter(); // todo add a white70 rectangle to _strokes
+
+  Painter.withStrokes(List<DrawingPoints> strokes) {
+    _strokes.addAll(strokes);
+  }
 
   bool hitTest(Offset position) => null;
 
@@ -302,7 +308,6 @@ class Painter extends ChangeNotifier implements CustomPainter {
       Path strokePath = Path();
       strokePath.addPolygon(stroke.points, false);
       canvas.drawPath(strokePath, stroke.paint);
-      canvas.clipRect(rect);
     }
   }
 
@@ -327,6 +332,17 @@ class Painter extends ChangeNotifier implements CustomPainter {
   void undo() {
     _strokes.removeLast();
     notifyListeners();
+  }
+
+  Future<ui.Image> recordPainting(BuildContext context) {
+    final recorder = PictureRecorder();
+    Canvas canvas = Canvas(recorder);
+    final painter = Painter.withStrokes(_strokes);
+    final size = context.size;
+    painter.paint(canvas, size);
+    return recorder
+        .endRecording()
+        .toImage(size.width.floor(), size.height.floor());
   }
 }
 
