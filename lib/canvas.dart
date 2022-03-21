@@ -8,7 +8,7 @@ class DrawApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Drawid',
+      title: 'BrokenCanvas',
       debugShowCheckedModeBanner: false,
       home: Draw(),
     );
@@ -26,33 +26,18 @@ class _DrawState extends State<Draw> {
   CustomPaint canvas;
   final painter = Painter();
   Color strokeColor = Colors.black;
-  Map<StrokePropertyType, StrokeProperty> sliderProperties;
-  StrokePropertyType selectedMode = StrokePropertyType.Width;
+  StrokeProperty strokeWidth  = StrokeProperty()
+      ..value = 3
+      ..max = 50;
 
-  StrokeProperty selectedSlider() {
-    return sliderProperties[selectedMode];
-  }
-
-  _DrawState() {
-    var width = StrokeProperty()
-      ..value = 3.0
-      ..max = 50.0;
-
-    var opacity = StrokeProperty()
-      ..value = 1.0
-      ..max = 1.0;
-
-    sliderProperties = Map();
-    sliderProperties[StrokePropertyType.Opacity] = opacity;
-    sliderProperties[StrokePropertyType.Width] = width;
-  }
+  _DrawState();
 
   void panStart(DragStartDetails details) {
     Paint strokePaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round
-    ..color = strokeColor.withOpacity(sliderProperties[StrokePropertyType.Opacity].value)
-    ..strokeWidth = sliderProperties[StrokePropertyType.Width].value;
+    ..color = strokeColor
+    ..strokeWidth = strokeWidth.value as double;
 
     painter.startStroke(details.globalPosition, strokePaint);
   }
@@ -84,7 +69,7 @@ class _DrawState extends State<Draw> {
   }
 
   bool showBottomList = false;
-  List<Color> colors = [
+  List<MaterialColor> colors = [
     Colors.amber,
     Colors.red,
     Colors.indigo,
@@ -121,7 +106,7 @@ class _DrawState extends State<Draw> {
         Align(
           alignment: Alignment.bottomRight,
           child: FloatingActionButton(
-            heroTag: "submitBtn",
+            heroTag: "saveBtn",
             backgroundColor: Colors.lightGreen,
             onPressed: () {
               saveDrawing();
@@ -152,55 +137,24 @@ class _DrawState extends State<Draw> {
                               painter.undo();
                             });
                           }),
-                      IconButton(
-                          icon: Icon(Icons.add_circle),
-                          onPressed: () {
-                            setState(() {
-                              if (selectedMode == StrokePropertyType.Width)
-                                showBottomList = !showBottomList;
-                              selectedMode = StrokePropertyType.Width;
-                            });
-                          }),
-                      IconButton(
-                          icon: Icon(Icons.opacity),
-                          onPressed: () {
-                            setState(() {
-                              if (selectedMode == StrokePropertyType.Opacity)
-                                showBottomList = !showBottomList;
-                              selectedMode = StrokePropertyType.Opacity;
-                            });
-                          }),
+                      Slider(
+                            activeColor: strokeColor,
+                            value: strokeWidth.value as double,
+                            max: strokeWidth.max as double,
+                            min: 0.0,
+                            onChanged: (val) {
+                              setState(() {
+                                strokeWidth.value = val as int;
+                              });
+                            }),
                       IconButton(
                           icon: Icon(Icons.palette),
                           onPressed: () {
                             setState(() {
-                              if (selectedMode == StrokePropertyType.Color)
-                                showBottomList = !showBottomList;
-                              selectedMode = StrokePropertyType.Color;
+                              // display color picker
                             });
                           }),
                     ],
-                  ),
-                  Visibility(
-                    child: (selectedMode == StrokePropertyType.Color)
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: getColorList(),
-                          )
-                        : Slider(
-                            activeColor: strokeColor.withOpacity(
-                                sliderProperties[StrokePropertyType.Opacity]
-                                    .value),
-                            value: selectedSlider().value,
-                            max: selectedSlider().max,
-                            min: 0.0,
-                            onChanged: (val) {
-                              setState(() {
-                                selectedSlider().value = val;
-                              });
-                            }),
-                    visible: showBottomList,
                   ),
                 ],
               ),
@@ -243,7 +197,15 @@ class _DrawState extends State<Draw> {
     );
   }
 
-  getColorList() {
+}
+
+class ColorPicker extends State<Draw>  {
+  final _recentColors = List<Color>();
+  Color selectedColor;
+
+  ColorPicker();
+
+  getSelectColorList() {
     List<Widget> listWidget = List();
     for (Color color in colors) {
       listWidget.add(colorCircle(color));
@@ -251,22 +213,36 @@ class _DrawState extends State<Draw> {
     return listWidget;
   }
 
+
+  getSavedColorList() {
+    List<Widget> listWidget = List();
+    for (Color color in _recentColors) {
+      listWidget.add(colorCircle(color));
+    }
+    return listWidget;
+  }
+
+
+
   Widget colorCircle(Color color) {
     return RawMaterialButton(
       onPressed: () {
+        
         setState(() {
           strokeColor = color;
         });
       },
       constraints: BoxConstraints(
           minWidth: 36.0, maxWidth: 36.0, minHeight: 36.0, maxHeight: 36.0),
-      highlightColor: Colors.black,
+      highlightColor: selectedColor == color ? color : Colors.black,
       elevation: 2.0,
       fillColor: color,
       shape: CircleBorder(),
     );
   }
+
 }
+
 
 class Painter extends ChangeNotifier implements CustomPainter {
   final _strokes = List<DrawingPoints>();
@@ -354,8 +330,8 @@ class DrawingPoints {
 }
 
 class StrokeProperty {
-  double value;
-  double max;
+  int value;
+  int max;
 }
 
 enum StrokePropertyType { Width, Opacity, Color }
